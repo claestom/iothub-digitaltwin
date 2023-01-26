@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Azure.Messaging.EventGrid;
+using System.Text;
 
 namespace IotHubtoTwins
 {
@@ -40,14 +41,22 @@ namespace IotHubtoTwins
                     // <Find_device_ID_and_temperature>
                     JObject deviceMessage = (JObject)JsonConvert.DeserializeObject(eventGridEvent.Data.ToString());
                     string deviceId = (string)deviceMessage["systemProperties"]["iothub-connection-device-id"];
-                    var temperature = deviceMessage["body"]["Temperature"];
+                    //string encoded_moisture = (string)deviceMessage["body"]["soil_moisture"];
+                    string encoded_moisture = (string)deviceMessage["body"];
+
+                    // string body = decode body base 64
+                    string moisture_decoded = Encoding.UTF8.GetString(Convert.FromBase64String(encoded_moisture));
+                    log.LogInformation(moisture_decoded);
+
+                    JObject body_json = (JObject)JsonConvert.DeserializeObject(moisture_decoded);
+                    var soil_moisture = body_json["soil_moisture"];
                     // </Find_device_ID_and_temperature>
 
-                    log.LogInformation($"Device:{deviceId} Temperature is:{temperature}");
+                    log.LogInformation($"Device:{deviceId} Moisture is:{soil_moisture}");
 
                     // <Update_twin_with_device_temperature>
                     var updateTwinData = new JsonPatchDocument();
-                    updateTwinData.AppendReplace("/Temperature", temperature.Value<double>());
+                    updateTwinData.AppendReplace("/Moisture", soil_moisture.Value<double>());
                     await client.UpdateDigitalTwinAsync(deviceId, updateTwinData);
                     // </Update_twin_with_device_temperature>
                 }
